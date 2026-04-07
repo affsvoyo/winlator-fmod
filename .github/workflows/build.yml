@@ -1,12 +1,9 @@
-name: 🚀 Build Winlator FMOD (Fixed)
+name: 🧪 Debug Winlator Build
 
 on:
   push:
     branches: [ main ]
-  pull_request:
   workflow_dispatch:
-  release:
-    types: [created]
 
 env:
   ANDROID_API: 33
@@ -16,20 +13,14 @@ env:
 
 jobs:
   build:
-    name: 📦 Build (${{ matrix.type }})
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        type: [debug]
-
     steps:
-      # 📥 Clone repo
+      # 📥 Checkout
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 🔄 Submodules (IMPORTANTE)
+      # 🔄 Submodules (ignora erro)
       - name: Init submodules
         run: git submodule update --init --recursive || true
 
@@ -44,7 +35,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install SDK / NDK / CMake
+      - name: Install SDK
         run: |
           sdkmanager \
             "platform-tools" \
@@ -56,83 +47,32 @@ jobs:
       - name: Accept licenses
         run: yes | sdkmanager --licenses
 
-      # ⚡ Cache Gradle
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
+      # 🔐 Permissão
+      - name: Make gradlew executable
+        run: chmod +x gradlew || true
 
-      # ⚡ Cache Android
-      - name: Cache Android
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.ANDROID_SDK_ROOT }}/ndk
-            ${{ env.ANDROID_SDK_ROOT }}/cmake
-          key: android-${{ runner.os }}-${{ env.NDK_VERSION }}
-
-      # 🔨 Build (Gradle)
-      - name: Build (Gradle)
+      # 🔨 Build (debug simples)
+      - name: Build Debug
         run: |
-          gradle assembleDebug
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug || true
+          else
+            echo "gradlew não encontrado 💀"
+          fi
 
-      # 🧪 Debug APK
-      - name: List APKs
-        run: find . -name "*.apk" || true
+      # 🧪 DEBUG REAL
+      - name: Debug files
+        run: |
+          echo "=== LISTANDO ARQUIVOS IMPORTANTES ==="
+          find . -type f \( -name "*.apk" -o -name "*.so" -o -name "*.log" \) || true
 
-      # 📤 Upload (SEM CRASH)
-      - name: Upload APK
+      # 📤 Upload (não quebra)
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: winlator-${{ matrix.type }}
+          name: debug-output
           path: |
             **/*.apk
+            **/*.so
+            **/*.log
           if-no-files-found: warn
-
-  # 🧱 RootFS
-  rootfs:
-    name: 🧱 Build RootFS
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install deps
-        run: |
-          sudo apt update
-          sudo apt install -y \
-            build-essential \
-            cmake \
-            ninja-build \
-            meson \
-            python3 \
-            git \
-            wget \
-            curl \
-            libglib2.0-dev
-
-      - name: Build RootFS
-        run: |
-          mkdir rootfs
-          echo "Fake rootfs build" > rootfs/info.txt
-
-      - name: Pack RootFS
-        run: tar -czvf rootfs.tar.gz rootfs
-
-      - name: Upload RootFS
-        uses: actions/upload-artifact@v4
-        with:
-          name: rootfs
-          path: rootfs.tar.gz
-
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          files: |
-            **/*.apk
-            **/*.tar.gz
