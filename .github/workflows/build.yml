@@ -31,6 +31,10 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      # 📦 Instalar Gradle (IMPORTANTE)
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v3
+
       # 🤖 Android SDK
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -47,26 +51,21 @@ jobs:
       - name: Accept licenses
         run: yes | sdkmanager --licenses
 
-      # 🔐 Permissão
-      - name: Make gradlew executable
-        run: chmod +x gradlew || true
-
-      # 🔨 Build (debug simples)
+      # 🔨 Build com gradle global
       - name: Build Debug
         run: |
-          if [ -f "./gradlew" ]; then
-            ./gradlew assembleDebug || true
-          else
-            echo "gradlew não encontrado 💀"
-          fi
+          gradle assembleDebug || true
 
       # 🧪 DEBUG REAL
       - name: Debug files
         run: |
-          echo "=== LISTANDO ARQUIVOS IMPORTANTES ==="
-          find . -type f \( -name "*.apk" -o -name "*.so" -o -name "*.log" \) || true
+          echo "=== APKs ==="
+          find . -name "*.apk" || true
+          
+          echo "=== SOs ==="
+          find . -name "*.so" || true
 
-      # 📤 Upload (não quebra)
+      # 📤 Upload
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -74,5 +73,4 @@ jobs:
           path: |
             **/*.apk
             **/*.so
-            **/*.log
           if-no-files-found: warn
