@@ -27,7 +27,7 @@ jobs:
     steps:
       # 📥 Clone repo
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@main
 
       # 🔄 Submodules (ESSENCIAL)
       - name: Init submodules
@@ -35,14 +35,14 @@ jobs:
 
       # ☕ Java
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@main
         with:
           distribution: temurin
           java-version: 17
 
       # 🤖 Android SDK
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@main
 
       - name: Install SDK / NDK / CMake
         run: |
@@ -58,14 +58,14 @@ jobs:
 
       # ⚡ Cache pesado (salva sua vida)
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@main
         with:
           path: |
             ~/.gradle
           key: gradle-${{ hashFiles('**/*.gradle*') }}
 
       - name: Cache Android
-        uses: actions/cache@v4
+        uses: actions/cache@main
         with:
           path: |
             ${{ env.ANDROID_SDK_ROOT }}/ndk
@@ -112,7 +112,7 @@ jobs:
 
       # 📤 Upload
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@main
         with:
           name: winlator-${{ matrix.type }}
           path: ${{ steps.find_apk.outputs.apks }}
@@ -124,7 +124,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@main
 
       - name: Install deps
         run: |
@@ -151,7 +151,7 @@ jobs:
           tar -czvf rootfs.tar.gz rootfs
 
       - name: Upload RootFS
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@main
         with:
           name: rootfs
           path: rootfs.tar.gz
@@ -165,10 +165,10 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@main
 
       - name: Upload to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@main
         with:
           files: |
             **/*.apk
