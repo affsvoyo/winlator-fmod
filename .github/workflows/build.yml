@@ -28,11 +28,7 @@ jobs:
       # 📥 Clone repo
       - name: Checkout
         uses: actions/checkout@main
-
-      # 🔄 Submodules (ESSENCIAL)
-      - name: Init submodules
-        run: git submodule update --init --recursive
-
+        
       # ☕ Java
       - name: Setup Java
         uses: actions/setup-java@main
