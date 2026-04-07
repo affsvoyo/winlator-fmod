@@ -108,13 +108,13 @@ jobs:
 
       # 📤 Upload
       - name: Upload APK
-  if: always()
-  uses: actions/upload-artifact@v4
-  with:
-    name: winlator-build
-    path: |
-      **/*.apk
-    if-no-files-found: warn
+        if: always()
+          uses: actions/upload-artifact@v4
+          with:
+             name: winlator-build
+         path: |
+            **/*.apk
+         if-no-files-found: warn
     
   # 🧪 Job extra: build rootfs (igual seus releases)
   rootfs:
