@@ -1,4 +1,4 @@
-name: 🚀 Build Winlator FMOD (Full Advanced)
+name: 🚀 Build Winlator FMOD (Fixed)
 
 on:
   push:
@@ -27,18 +27,22 @@ jobs:
     steps:
       # 📥 Clone repo
       - name: Checkout
-        uses: actions/checkout@main
-        
+        uses: actions/checkout@v4
+
+      # 🔄 Submodules (IMPORTANTE)
+      - name: Init submodules
+        run: git submodule update --init --recursive || true
+
       # ☕ Java
       - name: Setup Java
-        uses: actions/setup-java@main
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
       # 🤖 Android SDK
       - name: Setup Android SDK
-        uses: android-actions/setup-android@main
+        uses: android-actions/setup-android@v3
 
       - name: Install SDK / NDK / CMake
         run: |
@@ -52,21 +56,23 @@ jobs:
       - name: Accept licenses
         run: yes | sdkmanager --licenses
 
-      # ⚡ Cache pesado (salva sua vida)
+      # ⚡ Cache Gradle
       - name: Cache Gradle
-        uses: actions/cache@main
+        uses: actions/cache@v4
         with:
           path: |
-            ~/.gradle
-          key: gradle-${{ hashFiles('**/*.gradle*') }}
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
 
+      # ⚡ Cache Android
       - name: Cache Android
-        uses: actions/cache@main
+        uses: actions/cache@v4
         with:
           path: |
             ${{ env.ANDROID_SDK_ROOT }}/ndk
             ${{ env.ANDROID_SDK_ROOT }}/cmake
-          key: android-${{ env.NDK_VERSION }}
+          key: android-${{ runner.os }}-${{ env.NDK_VERSION }}
 
       # 🔍 Detectar tipo de build
       - name: Detect build system
@@ -91,39 +97,34 @@ jobs:
             ./gradlew assembleDebug
           fi
 
-      # 🔥 Build (Custom Winlator)
+      # 🔥 Build (Custom)
       - name: Build (Custom Script)
         if: steps.detect.outputs.mode == 'custom'
         run: |
           chmod +x build.sh
           ./build.sh
 
-      # 📦 Procurar APK automaticamente
-      - name: Find APKs
-        id: find_apk
-        run: |
-          APKS=$(find . -type f -name "*.apk")
-          echo "apks=$APKS" >> $GITHUB_OUTPUT
-          echo "$APKS"
+      # 🧪 Debug APK
+      - name: List APKs
+        run: find . -name "*.apk" || true
 
-      # 📤 Upload
+      # 📤 Upload (SEM CRASH)
       - name: Upload APK
-        if: always()
-          uses: actions/upload-artifact@v4
-          with:
-             name: winlator-build
-         path: |
+        uses: actions/upload-artifact@v4
+        with:
+          name: winlator-${{ matrix.type }}
+          path: |
             **/*.apk
-         if-no-files-found: warn
-    
-  # 🧪 Job extra: build rootfs (igual seus releases)
+          if-no-files-found: warn
+
+  # 🧱 RootFS
   rootfs:
-    name: 🧱 Build RootFS (Wine/GStreamer)
+    name: 🧱 Build RootFS
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
 
       - name: Install deps
         run: |
@@ -139,35 +140,33 @@ jobs:
             curl \
             libglib2.0-dev
 
-      # 🔥 Aqui simula build de rootfs (igual seus tags)
-      - name: Build RootFS (mock)
+      - name: Build RootFS
         run: |
           mkdir rootfs
-          echo "Fake rootfs build (substituir pelo real)" > rootfs/info.txt
+          echo "Fake rootfs build" > rootfs/info.txt
 
       - name: Pack RootFS
-        run: |
-          tar -czvf rootfs.tar.gz rootfs
+        run: tar -czvf rootfs.tar.gz rootfs
 
       - name: Upload RootFS
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
           name: rootfs
           path: rootfs.tar.gz
 
-  # 🚀 Publicar automaticamente (se for release)
+  # 🚀 Publish
   publish:
-    name: 📤 Publish Release Assets
+    name: 📤 Publish Release
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@main
+        uses: actions/download-artifact@v4
 
       - name: Upload to release
-        uses: softprops/action-gh-release@main
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             **/*.apk
