@@ -1,0 +1,175 @@
+name: 🚀 Build Winlator FMOD (Full Advanced)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+  release:
+    types: [created]
+
+env:
+  ANDROID_API: 33
+  BUILD_TOOLS: 33.0.2
+  NDK_VERSION: 25.2.9519653
+  CMAKE_VERSION: 3.22.1
+
+jobs:
+  build:
+    name: 📦 Build (${{ matrix.type }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        type: [debug, release]
+
+    steps:
+      # 📥 Clone repo
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 🔄 Submodules (ESSENCIAL)
+      - name: Init submodules
+        run: git submodule update --init --recursive
+
+      # ☕ Java
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # 🤖 Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK / NDK / CMake
+        run: |
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-${ANDROID_API}" \
+            "build-tools;${BUILD_TOOLS}" \
+            "ndk;${NDK_VERSION}" \
+            "cmake;${CMAKE_VERSION}"
+
+      - name: Accept licenses
+        run: yes | sdkmanager --licenses
+
+      # ⚡ Cache pesado (salva sua vida)
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle
+          key: gradle-${{ hashFiles('**/*.gradle*') }}
+
+      - name: Cache Android
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ANDROID_SDK_ROOT }}/ndk
+            ${{ env.ANDROID_SDK_ROOT }}/cmake
+          key: android-${{ env.NDK_VERSION }}
+
+      # 🔍 Detectar tipo de build
+      - name: Detect build system
+        id: detect
+        run: |
+          if [ -f "./build.sh" ]; then
+            echo "mode=custom" >> $GITHUB_OUTPUT
+          elif [ -f "./gradlew" ]; then
+            echo "mode=gradle" >> $GITHUB_OUTPUT
+          else
+            echo "mode=unknown" >> $GITHUB_OUTPUT
+          fi
+
+      # 🔨 Build (Gradle)
+      - name: Build (Gradle)
+        if: steps.detect.outputs.mode == 'gradle'
+        run: |
+          chmod +x gradlew
+          if [ "${{ matrix.type }}" = "release" ]; then
+            ./gradlew assembleRelease
+          else
+            ./gradlew assembleDebug
+          fi
+
+      # 🔥 Build (Custom Winlator)
+      - name: Build (Custom Script)
+        if: steps.detect.outputs.mode == 'custom'
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      # 📦 Procurar APK automaticamente
+      - name: Find APKs
+        id: find_apk
+        run: |
+          APKS=$(find . -type f -name "*.apk")
+          echo "apks=$APKS" >> $GITHUB_OUTPUT
+          echo "$APKS"
+
+      # 📤 Upload
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: winlator-${{ matrix.type }}
+          path: ${{ steps.find_apk.outputs.apks }}
+
+  # 🧪 Job extra: build rootfs (igual seus releases)
+  rootfs:
+    name: 🧱 Build RootFS (Wine/GStreamer)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            meson \
+            python3 \
+            git \
+            wget \
+            curl \
+            libglib2.0-dev
+
+      # 🔥 Aqui simula build de rootfs (igual seus tags)
+      - name: Build RootFS (mock)
+        run: |
+          mkdir rootfs
+          echo "Fake rootfs build (substituir pelo real)" > rootfs/info.txt
+
+      - name: Pack RootFS
+        run: |
+          tar -czvf rootfs.tar.gz rootfs
+
+      - name: Upload RootFS
+        uses: actions/upload-artifact@v4
+        with:
+          name: rootfs
+          path: rootfs.tar.gz
+
+  # 🚀 Publicar automaticamente (se for release)
+  publish:
+    name: 📤 Publish Release Assets
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            **/*.apk
+            **/*.tar.gz
