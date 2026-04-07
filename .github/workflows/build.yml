@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        type: [debug, release]
+        type: [debug]
 
     steps:
       # 📥 Clone repo
@@ -74,35 +74,10 @@ jobs:
             ${{ env.ANDROID_SDK_ROOT }}/cmake
           key: android-${{ runner.os }}-${{ env.NDK_VERSION }}
 
-      # 🔍 Detectar tipo de build
-      - name: Detect build system
-        id: detect
-        run: |
-          if [ -f "./build.sh" ]; then
-            echo "mode=custom" >> $GITHUB_OUTPUT
-          elif [ -f "./gradlew" ]; then
-            echo "mode=gradle" >> $GITHUB_OUTPUT
-          else
-            echo "mode=unknown" >> $GITHUB_OUTPUT
-          fi
-
       # 🔨 Build (Gradle)
       - name: Build (Gradle)
-        if: steps.detect.outputs.mode == 'gradle'
         run: |
-          chmod +x gradlew
-          if [ "${{ matrix.type }}" = "release" ]; then
-            ./gradlew assembleRelease
-          else
-            ./gradlew assembleDebug
-          fi
-
-      # 🔥 Build (Custom)
-      - name: Build (Custom Script)
-        if: steps.detect.outputs.mode == 'custom'
-        run: |
-          chmod +x build.sh
-          ./build.sh
+          gradle assembleDebug
 
       # 🧪 Debug APK
       - name: List APKs
@@ -154,19 +129,9 @@ jobs:
           name: rootfs
           path: rootfs.tar.gz
 
-  # 🚀 Publish
-  publish:
-    name: 📤 Publish Release
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'release'
-
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
-
-      - name: Upload to release
-        uses: softprops/action-gh-release@v2
         with:
           files: |
             **/*.apk
